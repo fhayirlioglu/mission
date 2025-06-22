@@ -1,0 +1,57 @@
+launch:
+
+  # ROV Sensors Launch File
+  # ROV Orin PC'de çalışacak (10.42.0.85)
+  # Kontrol PC'ye veri gönderecek (10.42.0.1)
+
+  - arg:
+      name: control_station_ip
+      default: "10.42.0.1"
+
+  - arg:
+      name: pixhawk_device  
+      default: "/dev/ttyACM0"
+
+  - arg:
+      name: ping_device
+      default: "/dev/ttyUSB1"
+
+  - arg:
+      name: camera_device
+      default: "/dev/video0"
+
+  # Camera node
+  - node:
+      pkg: usb_cam
+      exec: usb_cam_node_exe
+      name: camera
+      param:
+        - name: video_device
+          value: $(var camera_device)
+        - name: image_width
+          value: 1920
+        - name: image_height
+          value: 1080
+        - name: pixel_format
+          value: yuyv
+        - name: camera_frame_id
+          value: camera_link
+      remapping:
+        - from: /image_raw
+          to: /rov/camera/image_raw
+
+  # Ping sonar
+  - node:
+      pkg: ping_sonar_driver
+      exec: ping_sonar_node
+      name: ping_sonar
+      param:
+        - name: device
+          value: $(var ping_device)
+        - name: baudrate
+          value: 115200
+
+  # MAVProxy forwarding
+  - executable:
+      cmd: mavproxy.py
+      args: --master=$(var pixhawk_device) --baudrate=57600 --out=udp:$(var control_station_ip):14540 

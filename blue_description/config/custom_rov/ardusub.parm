@@ -1,0 +1,128 @@
+# Custom ROV ArduSub Parameters
+# Donanım: Pixhawk + Depth Sensor + Kamera + 3D Ping Sonar + Orin PC
+
+# Temel sistem parametreleri
+BATT_MONITOR     4
+FRAME_CONFIG     2.000    # BlueROV2 6DOF frame config
+
+# EKF3 Konfigürasyonu
+EK2_ENABLE 0
+EK3_ENABLE 1
+AHRS_EKF_TYPE 3
+
+# GPS devre dışı (su altında GPS çalışmaz)
+GPS_TYPE 0
+
+# IMU Kalibrasyonu (Pixhawk için)
+INS_ACCOFFS_X   0.001
+INS_ACCOFFS_Y   0.001
+INS_ACCOFFS_Z   0.001
+INS_ACCSCAL_X   1.001
+INS_ACCSCAL_Y   1.001
+INS_ACCSCAL_Z   1.001
+
+# Bar30 Depth Sensor Konfigürasyonu (Pixhawk'a bağlı)
+BARO_RND         0.02
+BARO_EXT_BUS     1        # External barometer on I2C bus
+BARO_PRIMARY     1        # Use external barometer as primary
+EK3_SRC1_POSZ    1        # Barometer/depth sensor primary Z source
+
+# Bar30 specific parameters
+BARO1_DEVID      5607425  # Bar30 device ID (if detected automatically)
+BARO_PROBE_EXT   768      # Probe for external barometers
+BARO_OPTIONS     1        # Enable barometer options
+
+# Magnetometer/Compass Konfigürasyonu  
+COMPASS_USE      1        # Enable primary compass
+COMPASS_USE2     0        # Disable secondary compass (eğer yoksa)
+COMPASS_USE3     0        # Disable tertiary compass (eğer yoksa)
+COMPASS_OFS_X    5
+COMPASS_OFS_Y    13
+COMPASS_OFS_Z    -18
+EK3_SRC1_YAW     1        # Compass for heading
+
+# Harici navigasyon (kamera/görsel odometri için)
+VISO_TYPE        1        # External vision enabled
+EK3_SRC1_POSXY   6        # External navigation for X,Y position
+EK3_SRC1_VELXY   6        # External navigation for X,Y velocity
+EK3_SRC1_VELZ    6        # External navigation for Z velocity
+
+# Range Finder (3D Ping Sonar için)
+RNGFND1_TYPE     10       # MAVLink rangefinder
+RNGFND1_MIN_CM   20       # Minimum range 20cm
+RNGFND1_MAX_CM   5000     # Maximum range 50m
+RNGFND1_ORIENT   25       # Downward facing
+RNGFND1_PIN      -1       # MAVLink protocol
+
+# İkinci range finder (forward facing - opsiyonel)
+RNGFND2_TYPE     10       # MAVLink rangefinder
+RNGFND2_MIN_CM   20
+RNGFND2_MAX_CM   5000
+RNGFND2_ORIENT   0        # Forward facing
+RNGFND2_PIN      -1
+
+# Kamera gimbal kontrolü
+MNT_TYPE         1        # Servo gimbal
+MNT_DEFLT_MODE   3        # MAVLink targeting mode
+MNT_RC_IN_TILT   8        # RC channel 8 for tilt control
+MNT_ANGMIN_TIL   -4500    # -45 degrees minimum tilt
+MNT_ANGMAX_TIL   4500     # +45 degrees maximum tilt
+
+# Thruster konfigürasyonu (BlueROV2 Heavy için 8 thruster)
+SERVO1_FUNCTION  33       # Motor 1
+SERVO2_FUNCTION  34       # Motor 2
+SERVO3_FUNCTION  35       # Motor 3
+SERVO4_FUNCTION  36       # Motor 4
+SERVO5_FUNCTION  37       # Motor 5
+SERVO6_FUNCTION  38       # Motor 6
+SERVO7_FUNCTION  39       # Motor 7
+SERVO8_FUNCTION  40       # Motor 8
+
+# RC Fail-safe
+FS_THR_ENABLE    1        # Throttle failsafe enabled
+FS_THR_VALUE     975      # Failsafe throttle value
+
+# Depth hold controller tuning
+PSC_POSZ_P       3        # Position Z P gain
+PSC_VELZ_P       8        # Velocity Z P gain
+PSC_ACCZ_P       2        # Acceleration Z P gain
+PSC_ACCZ_I       4        # Acceleration Z I gain
+PSC_ACCZ_FF      0.75     # Acceleration Z feedforward
+
+# Position controller tuning
+PSC_POSXY_P      2.5      # Position XY P gain
+PSC_VELXY_P      5.0      # Velocity XY P gain
+PSC_VELXY_I      0.5      # Velocity XY I gain
+PSC_VELXY_D      0.8      # Velocity XY D gain
+
+# Joystick/Teleop button functions
+BTN0_FUNCTION    0        # Disabled
+BTN1_FUNCTION    6        # Disarm
+BTN2_FUNCTION    8        # Manual mode
+BTN3_FUNCTION    7        # Stabilize mode
+BTN4_FUNCTION    4        # Depth hold mode
+BTN5_FUNCTION    1        # Arm
+BTN6_FUNCTION    3        # Auto mode
+BTN7_FUNCTION    21       # Relay 1 (lights)
+BTN8_FUNCTION    48       # Camera trigger
+BTN9_FUNCTION    23       # Relay 3
+BTN10_FUNCTION   22       # Relay 2
+
+# Message rates (MAVROS için)
+SR0_EXT_STAT     2        # System status
+SR0_EXTRA1       4        # Attitude
+SR0_EXTRA2       4        # VFR HUD
+SR0_EXTRA3       2        # AHRS
+SR0_POSITION     2        # Global position
+SR0_RAW_SENS     2        # Raw sensors
+SR0_RC_CHAN      2        # RC channels
+
+# Logging
+LOG_BITMASK      65535    # Log everything for debugging
+
+# Simülasyon parametreleri (test için)
+SIM_BARO_RND     0.01
+
+# Leak detector (eğer varsa)
+LEAK1_PIN        2        # GPIO pin for leak detector
+LEAK1_LOGIC      0        # Active low 

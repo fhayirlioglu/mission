@@ -1,0 +1,24 @@
+mavros:
+  ros__parameters:  
+    system_id: 255
+    plugin_allowlist:
+      - sys_status
+      - command
+      - imu
+      - rc_io
+      - param
+      - vision*
+      - local*
+      - global_position
+
+mavros_node:
+  ros__parameters:
+    fcu_url: "udp://:14550@10.42.0.1"
+    #gcs_url: "udp://@localhost:14550"
+    gcs_url: "udp://:14550@10.42.0.1"
+
+mavros/local_position:
+  ros__parameters:
+    frame_id: "map"
+    tf:
+      send: false

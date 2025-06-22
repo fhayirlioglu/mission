@@ -1,0 +1,166 @@
+# Custom ROV Localization Configuration
+# Kamera + 3D Ping Sonar + Depth Sensor entegrasyonu
+
+camera:
+  ros__parameters:
+    # Kamera bağlantı ayarları
+    device: "/dev/video0"  # USB kamera için
+    # IP kamera için alternatif:
+    # ip_address: "192.168.1.100"
+    # port: 554
+    # stream_uri: "rtsp://192.168.1.100:554/stream"
+    
+    # Kamera çözünürlüğü ve format
+    frame:
+      width: 1920
+      height: 1080
+      fps: 30
+    
+    # Kamera kalibrasyonu (bu değerler kameranıza göre ayarlanmalı)
+    # Kamera kalibrasyonu için: ros2 run camera_calibration cameracalibrator
+    camera_matrix:
+      [1078.17559,        0.0, 960.0,
+              0.0, 1076.46176, 540.0,
+              0.0,        0.0,   1.0]
+    
+    distortion_coefficients:
+      [0.019645, 0.007271, -0.004324, -0.001628, 0.000000]
+    
+    projection_matrix:
+      [1108.25366,        0.0, 955.75555, 0.0,
+              0.0, 1108.39001, 535.92861, 0.0,
+              0.0,        0.0,       1.0, 0.0]
+    
+    distortion_model: "plumb_bob"
+    
+    # Frame ID'ler
+    camera_frame_id: "camera_link"
+    image_topic: "/camera/image_raw"
+    camera_info_topic: "/camera/camera_info"
+
+# 3D Ping Sonar Konfigürasyonu
+ping_sonar:
+  ros__parameters:
+    # Ping sonar bağlantı ayarları
+    device: "/dev/ttyUSB1"  # Ping sonar USB bağlantısı
+    baudrate: 115200
+    
+    # Ethernet bağlantısı için alternatif:
+    # ip_address: "192.168.2.2"
+    # port: 9090
+    
+    # Sonar parametreleri
+    range_min: 0.2        # Minimum menzil (metre)
+    range_max: 50.0       # Maksimum menzil (metre)
+    update_rate: 10       # Hz
+    gain_setting: 0       # Otomatik gain (0-6 arası manuel)
+    
+    # 3D scanning parametreleri
+    scan_start: -90       # Tarama başlangıç açısı (derece)
+    scan_stop: 90         # Tarama bitiş açısı (derece)
+    scan_step: 1          # Açı adımı (derece)
+    
+    # Frame ID'ler
+    frame_id: "ping_sonar_link"
+    publish_point_cloud: true
+    publish_scan: true
+    
+    # ROS topics
+    point_cloud_topic: "/ping_sonar/point_cloud"
+    scan_topic: "/ping_sonar/scan"
+    range_topic: "/ping_sonar/range"
+
+# Bar30 Depth Sensor (Pixhawk üzerinden - MAVROS)
+# Bar30 Pixhawk'a I2C ile bağlı olduğu için ayrı driver gerekmez
+# Veriler MAVROS üzerinden gelir:
+# - /mavros/altitude/altitude          -> Depth/altitude data  
+# - /mavros/global_position/rel_alt    -> Relative altitude
+# - /mavros/imu/atm_pressure          -> Atmospheric pressure
+# - /mavros/imu/temperature           -> Temperature
+
+bar30_mavros:
+  ros__parameters:
+    # Frame ID for depth data
+    frame_id: "base_link"
+    
+    # Fluid density for depth calculation (set in ArduSub parameters)
+    fluid_density: 1029.0  # kg/m³ (deniz suyu - ArduSub'da ayarlanır)
+    
+    # Topic remapping if needed
+    altitude_topic: "/mavros/altitude/altitude"
+    pressure_topic: "/mavros/imu/atm_pressure"
+    temperature_topic: "/mavros/imu/temperature"
+
+# Visual Odometry Konfigürasyonu
+visual_odometry:
+  ros__parameters:
+    # ORB-SLAM3 veya RTAB-Map konfigürasyonu
+    algorithm: "orb_slam3"  # "orb_slam3", "rtabmap", "dso"
+    
+    # ORB-SLAM3 parametreleri
+    vocabulary_path: "/opt/ros/humble/share/orb_slam3_ros/vocabulary/ORBvoc.txt"
+    settings_path: "/opt/ros/humble/share/orb_slam3_ros/config/underwater.yaml"
+    
+    # Özellik çıkarma
+    feature_detector: "ORB"  # "ORB", "SIFT", "SURF"
+    max_features: 1000
+    
+    # Stereo veya monocular
+    sensor_type: "monocular"  # "stereo", "monocular", "rgbd"
+    
+    # Frame ID'ler
+    base_frame: "base_link"
+    odom_frame: "odom"
+    map_frame: "map"
+    
+    # ROS topics
+    pose_topic: "/visual_odometry/pose"
+    odometry_topic: "/visual_odometry/odometry"
+
+# ArUco Marker Detection
+aruco_detection:
+  ros__parameters:
+    # ArUco marker konfigürasyonu
+    dictionary_id: 0      # DICT_4X4_50
+    marker_size: 0.1      # metre cinsinden marker boyutu
+    
+    # Detection parametreleri
+    min_marker_perimeter: 100
+    max_marker_perimeter: 4000
+    accuracy: 0.03
+    
+    # Kamera kalibrasyonu (camera ile aynı olmalı)
+    camera_matrix: [1078.17559, 0.0, 960.0, 0.0, 1076.46176, 540.0, 0.0, 0.0, 1.0]
+    distortion_coefficients: [0.019645, 0.007271, -0.004324, -0.001628, 0.000000]
+    
+    # Frame ID'ler
+    camera_frame: "camera_link"
+    marker_frame: "aruco_marker"
+    
+    # ROS topics
+    image_topic: "/camera/image_raw"
+    pose_topic: "/aruco_detection/pose"
+    markers_topic: "/aruco_detection/markers"
+
+# Multi-sensor fusion
+sensor_fusion:
+  ros__parameters:
+    # Kalman filter veya EKF konfigürasyonu
+    use_external_pose: true
+    use_visual_odometry: true
+    use_depth_sensor: true
+    use_ping_sonar: true
+    
+    # Sensör güvenilirlik ağırlıkları
+    vision_weight: 0.6
+    depth_weight: 0.9
+    sonar_weight: 0.7
+    imu_weight: 0.8
+    
+    # Filtreleme parametreleri
+    prediction_rate: 50    # Hz
+    update_rate: 20        # Hz
+    
+    # Covariance matrisleri
+    process_noise: [0.01, 0.01, 0.01, 0.001, 0.001, 0.001]
+    measurement_noise: [0.1, 0.1, 0.05, 0.01, 0.01, 0.01] 

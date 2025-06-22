@@ -1,0 +1,146 @@
+mavros:
+  ros__parameters:  
+    system_id: 255
+    component_id: 240
+    target_system_id: 1
+    target_component_id: 1
+    
+    # Plugin allowlist - sadece gerekli pluginler
+    plugin_allowlist:
+      - sys_status
+      - command
+      - imu
+      - rc_io
+      - param
+      - vision*
+      - local*
+      - global_position
+      - rangefinder
+      - camera
+      - distance_sensor
+      - home_position
+      - manual_control
+      - setpoint*
+
+mavros_node:
+  ros__parameters:
+    # Network-based connection (ROV Orin PC -> Control PC)
+    # Orin PC (10.42.0.85) runs MAVProxy and forwards to Control PC (10.42.0.1)
+    fcu_url: "udp://:14540@10.42.0.85:14557"  # Receive from Orin PC MAVProxy
+    
+    # Alternative for direct connection if needed:
+    # fcu_url: "udp://:14550@10.42.0.85:14551"  # Direct MAVLink from Orin
+    
+    # Ground Control Station (this control PC)
+    gcs_url: "udp://@10.42.0.1:14550"  # Send to local GCS (QGroundControl, etc.)
+    
+    # Network timeouts and reliability
+    conn_timeout: 10.0
+    
+    # Heartbeat ve timeout ayarları
+    heartbeat_rate: 1.0
+    timeout: 10.0
+    
+    # System status
+    sys_status:
+      min_voltage: 10.0
+      disable_diag: false
+
+mavros/local_position:
+  ros__parameters:
+    frame_id: "map_ned"  # NED frame (ArduPilot standardı)
+    tf:
+      send: true
+      frame_id: "map_ned"
+      child_frame_id: "base_link"
+      rate_limit: 10.0
+
+mavros/global_position:
+  ros__parameters:
+    frame_id: "map"
+    child_frame_id: "base_link"
+    rot_covariance: 99999.0
+
+mavros/imu:
+  ros__parameters:
+    frame_id: "base_link"
+    linear_acceleration_stdev: 0.0003
+    angular_velocity_stdev: 0.0003490659
+    orientation_stdev: 1.0
+    magnetic_declination_auto: true
+    magnetic_declination_radians: 0.0
+
+# Vision/External navigation
+mavros/vision_pose:
+  ros__parameters:
+    listen: true
+    tf:
+      listen: false
+      frame_id: "map"
+      child_frame_id: "vision"
+      rate_limit: 10.0
+
+mavros/vision_speed:
+  ros__parameters:
+    listen: true
+
+# Bar30 Depth Sensor (Pixhawk'a bağlı)
+mavros/altitude:
+  ros__parameters:
+    frame_id: "base_link"
+    # Bar30 depth sensor data will be published on these topics:
+    # /mavros/altitude -> for altitude/depth data
+    # /mavros/global_position/rel_alt -> for relative altitude
+
+# Rangefinder/Sonar
+mavros/distance_sensor:
+  ros__parameters:
+    # Ping sonar konfigürasyonu
+    hrlv_ez4_pub:
+      id: 0
+      frame_id: "sonar_down"
+      orientation: 25  # MAV_SENSOR_ROTATION_PITCH_270 (downward)
+      field_of_view: 0.0  # 0 = distance sensor
+      send_tf: true
+      sensor_position: {x: 0.0, y: 0.0, z: 0.1}
+    
+    # Forward facing sonar (opsiyonel)
+    hrlv_ez4_pub_1:
+      id: 1
+      frame_id: "sonar_front"
+      orientation: 0   # MAV_SENSOR_ROTATION_NONE (forward)
+      field_of_view: 0.0
+      send_tf: true
+      sensor_position: {x: 0.3, y: 0.0, z: 0.0}
+
+# Camera gimbal
+mavros/mount_control:
+  ros__parameters:
+    debounce_s: 4.0
+    err_threshold: 10.0
+    negate_tilt: false
+    negate_pan: false
+    negate_roll: false
+
+# RC channels
+mavros/rc:
+  ros__parameters:
+    # RC channel mapping
+    map_roll: 0      # Channel 1
+    map_pitch: 1     # Channel 2
+    map_throttle: 2  # Channel 3
+    map_yaw: 3       # Channel 4
+    map_roll_pitch: [0, 1]
+    map_throttle_yaw: [2, 3]
+    
+    # Override channels
+    override_channels: 8
+    override:
+      - 1500  # Channel 1 (roll)
+      - 1500  # Channel 2 (pitch)
+      - 1500  # Channel 3 (throttle)
+      - 1500  # Channel 4 (yaw)
+      - 1500  # Channel 5 (forward/back)
+      - 1500  # Channel 6 (left/right)
+      - 1500  # Channel 7 (up/down)
+      - 1500  # Channel 8 (camera tilt) 

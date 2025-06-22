@@ -1,0 +1,322 @@
+launch:
+
+  # Control Station Launch File
+  # Ana kontrol PC'sinden ROV'u yönetmek için (10.42.0.1)
+  # ROV Orin PC: 10.42.0.85
+
+  # Launch file arguments
+  - arg:
+      name: use_sim
+      default: false
+      description: "Use simulation environment"
+
+  - arg:
+      name: use_rviz
+      default: true
+      description: "Launch RViz for visualization"
+
+  - arg:
+      name: use_joy
+      default: true
+      description: "Enable joystick control"
+
+  - arg:
+      name: mavros_config
+      default: $(find-pkg-share blue_description)/config/custom_rov/mavros.yaml
+      description: "MAVROS configuration file"
+
+  - arg:
+      name: rov_ip
+      default: "10.42.0.85"
+      description: "ROV Orin PC IP address"
+
+  - arg:
+      name: control_ip
+      default: "10.42.0.1" 
+      description: "Control station IP address"
+
+  - let:
+      name: robot_description
+      value: |
+        <?xml version="1.0"?>
+        <robot name="custom_rov" xmlns:xacro="http://ros.org/wiki/xacro">
+          <!-- Base link -->
+          <link name="base_link">
+            <visual>
+              <geometry>
+                <box size="0.45 0.32 0.18"/>
+              </geometry>
+              <material name="blue">
+                <color rgba="0.2 0.4 0.8 1.0"/>
+              </material>
+            </visual>
+            <collision>
+              <geometry>
+                <box size="0.45 0.32 0.18"/>
+              </geometry>
+            </collision>
+          </link>
+          
+          <!-- Camera link -->
+          <link name="camera_link">
+            <visual>
+              <geometry>
+                <box size="0.02 0.08 0.02"/>
+              </geometry>
+              <material name="black">
+                <color rgba="0.1 0.1 0.1 1.0"/>
+              </material>
+            </visual>
+          </link>
+          
+          <joint name="camera_joint" type="fixed">
+            <parent link="base_link"/>
+            <child link="camera_link"/>
+            <origin xyz="0.20 0.0 0.0" rpy="0 0 0"/>
+          </joint>
+          
+          <!-- Ping sonar link -->
+          <link name="ping_sonar_link">
+            <visual>
+              <geometry>
+                <cylinder radius="0.025" length="0.10"/>
+              </geometry>
+              <material name="yellow">
+                <color rgba="1.0 1.0 0.0 1.0"/>
+              </material>
+            </visual>
+          </link>
+          
+          <joint name="ping_sonar_joint" type="fixed">
+            <parent link="base_link"/>
+            <child link="ping_sonar_link"/>
+            <origin xyz="0.0 0.0 0.15" rpy="0 0 0"/>
+          </joint>
+          
+          <!-- Depth sensor link -->
+          <link name="depth_sensor_link">
+            <visual>
+              <geometry>
+                <box size="0.01 0.01 0.005"/>
+              </geometry>
+              <material name="green">
+                <color rgba="0.0 1.0 0.0 1.0"/>
+              </material>
+            </visual>
+          </link>
+          
+          <joint name="depth_sensor_joint" type="fixed">
+            <parent link="base_link"/>
+            <child link="depth_sensor_link"/>
+            <origin xyz="0.0 0.0 -0.10" rpy="0 0 0"/>
+          </joint>
+        </robot>
+
+  # Static transforms
+  - node:
+      pkg: tf2_ros
+      exec: static_transform_publisher
+      name: map_to_odom
+      args: --frame-id map --child-frame-id odom --x 0 --y 0 --z 0 --qx 0 --qy 0 --qz 0 --qw 1
+
+  # Robot state publisher
+  - node:
+      pkg: robot_state_publisher
+      exec: robot_state_publisher
+      param:
+        - name: robot_description
+          value: $(var robot_description)
+        - name: use_sim_time
+          value: $(var use_sim)
+
+  # MAVROS node (connects to ROV via network)
+  - node:
+      pkg: mavros
+      exec: mavros_node
+      name: mavros
+      param_file: $(var mavros_config)
+      param:
+        - name: use_sim_time
+          value: $(var use_sim)
+        - name: fcu_url
+          value: "udp://:14540@$(var rov_ip):14557"
+        - name: gcs_url
+          value: "udp://@$(var control_ip):14550"
+      remapping:
+        - from: /mavros/imu/data
+          to: /imu/data
+        - from: /mavros/local_position/pose
+          to: /pose
+        - from: /mavros/local_position/velocity_local
+          to: /velocity
+
+  # Image transport relay (receive from ROV)
+  - node:
+      pkg: image_transport
+      exec: republish
+      name: camera_relay
+      args: compressed raw
+      remapping:
+        - from: in/compressed
+          to: /rov/camera/image_raw/compressed
+        - from: out
+          to: /camera/image_raw
+
+  # Compressed image transport for camera feed from ROV
+  - node:
+      pkg: rqt_image_view
+      exec: rqt_image_view
+      name: camera_viewer
+      if: $(var use_rviz)
+      args: /camera/image_raw
+
+  # Sensor fusion node (EKF) - runs on control station
+  - node:
+      pkg: robot_localization
+      exec: ekf_node
+      name: ekf_filter_node
+      param:
+        - name: use_sim_time
+          value: $(var use_sim)
+        - name: frequency
+          value: 30.0
+        - name: sensor_timeout
+          value: 0.5  # Increased for network latency
+        - name: two_d_mode
+          value: false
+        - name: transform_time_offset
+          value: 0.0
+        - name: transform_timeout
+          value: 0.5  # Increased for network
+        - name: print_diagnostics
+          value: true
+        - name: debug
+          value: false
+        
+        # IMU from MAVROS
+        - name: imu0
+          value: /imu/data
+        - name: imu0_config
+          value: [false, false, false,
+                  true,  true,  true,
+                  false, false, false,
+                  true,  true,  true,
+                  true,  true,  true]
+        - name: imu0_differential
+          value: false
+        - name: imu0_relative
+          value: true
+        - name: imu0_remove_gravitational_acceleration
+          value: true
+        
+        # Pose from MAVROS
+        - name: pose0
+          value: /pose
+        - name: pose0_config
+          value: [true,  true,  true,
+                  false, false, true,
+                  false, false, false,
+                  false, false, false,
+                  false, false, false]
+        - name: pose0_differential
+          value: false
+        - name: pose0_relative
+          value: false
+
+      remapping:
+        - from: /odometry/filtered
+          to: /odometry/filtered
+
+  # Joystick teleop (runs locally on control station)
+  - node:
+      pkg: joy
+      exec: joy_node
+      name: joy
+      if: $(var use_joy)
+      param:
+        - name: dev
+          value: /dev/input/js0
+        - name: deadzone
+          value: 0.3
+        - name: autorepeat_rate
+          value: 20.0
+
+  - node:
+      pkg: teleop_twist_joy
+      exec: teleop_node
+      name: teleop_twist_joy
+      if: $(var use_joy)
+      param:
+        - name: axis_linear.x
+          value: 1
+        - name: axis_linear.y
+          value: 0
+        - name: axis_linear.z
+          value: 4
+        - name: axis_angular.yaw
+          value: 3
+        - name: scale_linear
+          value: 1.0
+        - name: scale_angular
+          value: 1.0
+        - name: enable_button
+          value: 0
+      remapping:
+        - from: /cmd_vel
+          to: /mavros/setpoint_velocity/cmd_vel_unstamped
+
+  # RViz visualization (runs on control station)
+  - node:
+      pkg: rviz2
+      exec: rviz2
+      if: $(var use_rviz)
+      args: -d $(find-pkg-share blue_description)/rviz/custom_rov.rviz
+      param:
+        - name: use_sim_time
+          value: $(var use_sim)
+
+  # Network monitor
+  - node:
+      pkg: rqt_console
+      exec: rqt_console
+      name: console
+      if: $(var use_rviz)
+
+  # Topic monitor for network diagnostics
+  - node:
+      pkg: rqt_topic
+      exec: rqt_topic
+      name: topic_monitor
+      if: $(var use_rviz)
+
+  # TF tree broadcaster (for remote TF data)
+  - node:
+      pkg: tf2_ros
+      exec: static_transform_publisher
+      name: odom_to_base_link
+      args: --frame-id odom --child-frame-id base_link --x 0 --y 0 --z 0 --qx 0 --qy 0 --qz 0 --qw 1
+
+  # Diagnostic aggregator
+  - node:
+      pkg: diagnostic_aggregator
+      exec: aggregator_node
+      name: diagnostic_aggregator
+      param:
+        - name: use_sim_time
+          value: $(var use_sim)
+        - name: pub_rate
+          value: 1.0
+        - name: base_path
+          value: ""
+        - name: analyzers.mavros.type
+          value: diagnostic_aggregator/GenericAnalyzer
+        - name: analyzers.mavros.path
+          value: MAVROS
+        - name: analyzers.mavros.contains
+          value: ['mavros']
+        - name: analyzers.network.type
+          value: diagnostic_aggregator/GenericAnalyzer
+        - name: analyzers.network.path
+          value: Network
+        - name: analyzers.network.contains
+          value: ['network', 'connection'] 
